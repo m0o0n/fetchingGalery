@@ -1,19 +1,28 @@
-import "simplelightbox/dist/simple-lightbox.min.css";
-import { fetchImages } from "./api/index";
-import SimpleLightbox from "simplelightbox";
+import 'simplelightbox/dist/simple-lightbox.min.css';
+import { fetchImages } from './api/pixabay-api.js';
+import SimpleLightbox from 'simplelightbox';
 import Notiflix from 'notiflix';
 
-const gallery = document.querySelector('.gallery')
-const loadMore = document.querySelector('.load-more')
-const searchForm = document.querySelector('.search-form')
+const elements = {
+  gallery: document.querySelector('.gallery'),
+  loadMore: document.querySelector('.load-more'),
+  searchForm: document.querySelector('.search-form'),
+};
 
-
-const generateGaleryCard = ({likes, downloads, comments, views, webformatURL, largeImageURL, tags }) => {
-    return `
-    <div class="photo-card">
+const generateGaleryCard = ({
+  likes,
+  downloads,
+  comments,
+  views,
+  webformatURL,
+  largeImageURL,
+  tags,
+}) => {
+  return `
+  <div class="photo-card">
     <a 
         href="${largeImageURL}"
-        class="gallery__link"
+        class="gallery-link"
     >
         <img src="${webformatURL}" data-src="${largeImageURL}" alt="${tags}" loading="lazy" />
     </a>
@@ -24,7 +33,7 @@ const generateGaleryCard = ({likes, downloads, comments, views, webformatURL, la
       </p>
       <p class="info-item">
         <b>Views</b>
-        <span>${downloads}</span>
+        <span>${views}</span>
       </p>
       <p class="info-item">
         <b>Comments</b>
@@ -32,58 +41,79 @@ const generateGaleryCard = ({likes, downloads, comments, views, webformatURL, la
       </p>
       <p class="info-item">
         <b>Downloads</b>
-        <span>${views}</span>
+        <span>${downloads}</span>
       </p>
     </div>
   </div>
-    `
-}
+    `;
+};
 
-const render = (counter, query, isSearch) => {
-    fetchImages(counter, query).then(data => {
-        let galleryElems = gallery.innerHTML
-        const galleryHTML = data.reduce((acc, cur)=>{
-            acc = acc.concat(generateGaleryCard(cur))
-            return acc
-        }, '')
-        gallery.innerHTML = isSearch ? galleryHTML : galleryElems.concat(galleryHTML)
-       
-        new SimpleLightbox('.gallery a', {
-            captionsData: 'alt',
-            captionDelay: 250,
-        })
-        
-        if(!data.length && isSearch) {
-            Notiflix.Notify.failure(`No results for your response: ${query}`)
-            loadMore.style.display = 'none'
-        } else {
-            loadMore.style.display = 'flex'
-        }
-        
-        if(isSearch){
-          window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-          });
-        } else {
-            const { height: cardHeight } = document.querySelector(".gallery").firstElementChild.getBoundingClientRect();
-            window.scrollBy({
-                top: cardHeight * 2,
-                behavior: "smooth",
-            });  
-        }
-    })
-}
+const render = (page, query, isSearch) => {
+  if (!query.trim()) {
+    Notiflix.Notify.failure('Search query shouldn`t be an empty string')
+  } else {
+    fetchImages(page, query).then(data => {
+      let galleryElems = elements.gallery.innerHTML;
+      const galleryHTML = data.hits.reduce((acc, cur) => {
+        acc = acc.concat(generateGaleryCard(cur));
+        return acc;
+      }, '');
 
-let counter = 1
-let query = ''
-loadMore.addEventListener('click', ()=>{
-    counter++
-    render(counter, query, false)
-})
+      elements.gallery.innerHTML = isSearch
+        ? galleryHTML
+        : galleryElems.concat(galleryHTML);
+      const maxPage = Math.ceil(data.totalHits / data.params.per_page)
 
-searchForm.addEventListener('submit', (e)=>{
-    e.preventDefault()
-    query = e.currentTarget.elements.searchQuery.value
-    render(counter, query, true)
-})
+      if (data.totalHits > data.params.per_page) {
+        elements.loadMore.style.display = 'flex'
+      }
+      if (page === maxPage) {
+        elements.loadMore.style.display = 'none'
+        Notiflix.Notify.failure(
+          `We're sorry, but you've reached the end of search results.`
+        );
+      }
+      if (!data.totalHits) {
+        elements.loadMore.style.display = 'none'
+        Notiflix.Notify.failure(
+          `Sorry, there are no images matching your search query. Please try again.`
+        );
+      }
+      if (isSearch && data.totalHits) {
+        Notiflix.Notify.success(`Hooray! We found ${data.totalHits} images.`)
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth',
+        });
+      }
+      if (!isSearch && data.totalHits) {
+        const { height: cardHeight } = document
+          .querySelector('.gallery')
+          .firstElementChild.getBoundingClientRect();
+        window.scrollBy({
+          top: cardHeight * 2,
+          behavior: 'smooth',
+        });
+      }
+      new SimpleLightbox('.gallery a', {
+        captionsData: 'alt',
+        captionDelay: 250,
+      });
+    });
+  }
+
+};
+
+let page = 1;
+let query = '';
+elements.loadMore.addEventListener('click', () => {
+  page++;
+  render(page, query, false);
+});
+
+elements.searchForm.addEventListener('submit', e => {
+  e.preventDefault();
+  query = e.currentTarget.elements.searchQuery.value;
+  page = 1;
+  render(page, query, true);
+});

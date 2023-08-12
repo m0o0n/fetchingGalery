@@ -1,15 +1,9 @@
 @import '~node_modules/modern-normalize/modern-normalize.css';
-button{
-    cursor: pointer;
-    border: none;
+button {
+  cursor: pointer;
+  border: none;
 }
 input {
-    outline: none;
-    border: none;
-}
-.size {
-    &__lagre{
-        width: 80px;
-        height: 40px;
-    }
+  outline: none;
+  border: none;
 }
